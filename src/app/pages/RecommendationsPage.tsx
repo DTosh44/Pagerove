@@ -1,9 +1,36 @@
 import { useState, type FormEvent } from 'react';
-import { Sparkles } from 'lucide-react';
-import type { Recommendation } from '../../domain/types';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Check, Plus, Sparkles } from 'lucide-react';
+import type { LibraryBook, Recommendation } from '../../domain/types';
+import { readingStatus } from '../../domain/library';
 import { useLibrary, useAction } from '../context';
-import { PageHeading, BookCard, ErrorMessage, Button } from '../components';
+import { PageHeading, Cover, BookRow, ErrorMessage, Button } from '../components';
 import { api } from '../api';
+function ReadingListButton({ book, memberId }: { book: LibraryBook; memberId: string }) {
+  const { refresh, notify } = useLibrary(),
+    { busy, error, run } = useAction();
+  const saved = readingStatus(book, memberId) === 'want_to_read';
+  return (
+    <div className="reading-list-action">
+      <button
+        type="button"
+        className="button coral"
+        disabled={busy || saved}
+        onClick={() =>
+          void run(async () => {
+            await api('/history', 'PUT', { memberId, bookIds: [book.id], status: 'want_to_read' });
+            await refresh();
+            notify('Added to your reading list.');
+          })
+        }
+      >
+        {saved ? <Check size={19} /> : <Plus size={19} />}{' '}
+        {saved ? 'On your reading list' : busy ? 'Adding…' : 'Add to my reading list'}
+      </button>
+      <ErrorMessage message={error} />
+    </div>
+  );
+}
 export function RecommendationsPage() {
   const { data, memberId } = useLibrary(),
     [request, setRequest] = useState(''),
@@ -12,6 +39,8 @@ export function RecommendationsPage() {
     ),
     { busy, error, run } = useAction();
   const recommendations = result?.memberId === memberId ? result.recommendations : null;
+  const primary = recommendations?.[0],
+    book = data.books.find((book) => book.id === primary?.bookId);
   function submit(event: FormEvent) {
     event.preventDefault();
     const selectedMember = memberId;
@@ -25,27 +54,13 @@ export function RecommendationsPage() {
     });
   }
   return (
-    <>
+    <div className="recommendations-page">
       <PageHeading
-        eyebrow="A fresh look at familiar shelves"
-        title="What should I read?"
-        description="Tell us what you’re in the mood for. Your next book may already be at home."
+        title="What are you in the mood for?"
+        description="A little escape. A big idea. Something you can’t put down."
       />
-      <section className="recommendation-prompt panel">
-        <div className="round-icon">
-          <Sparkles size={28} />
-        </div>
-        <h2>A little inspiration for your next chapter.</h2>
+      <section className="mood-picker">
         <form onSubmit={submit}>
-          <label htmlFor="mood">What are you in the mood for?</label>
-          <textarea
-            id="mood"
-            maxLength={500}
-            rows={3}
-            placeholder="Something gripping for a rainy weekend…"
-            value={request}
-            onChange={(e) => setRequest(e.target.value)}
-          />
           <div className="quick-prompts">
             {['Gripping', 'Easy', 'Funny', 'Learn something', 'Short', 'Surprise me'].map(
               (prompt) => (
@@ -60,41 +75,106 @@ export function RecommendationsPage() {
               ),
             )}
           </div>
-          <ErrorMessage message={error} />
-          <Button busy={busy}>
-            Find my next read <Sparkles size={18} />
-          </Button>
-        </form>
-        <p className="recommendation-note">
-          Only unread books you already own. Using simple preference matching for this demo.
-        </p>
-      </section>
-      {recommendations && (
-        <section className="recommendation-results">
-          <h2>
-            {recommendations.length
-              ? 'Waiting for you at home'
-              : 'You’ve explored every unread book'}
-          </h2>
-          {!recommendations.length && (
-            <p>No unread books for this profile yet. Add a book or update reading history.</p>
-          )}
-          <div className="recommendation-grid">
-            {recommendations.map((recommendation) => {
-              const book = data.books.find((item) => item.id === recommendation.bookId);
-              return book ? (
-                <div key={book.id}>
-                  <BookCard book={book} />
-                  <p className="recommendation-reason">
-                    <Sparkles size={16} />
-                    {recommendation.explanation}
-                  </p>
-                </div>
-              ) : null;
-            })}
+          <label className="mood-input" htmlFor="mood">
+            <Sparkles size={21} />
+            <input
+              id="mood"
+              aria-label="What would you like to read?"
+              maxLength={500}
+              placeholder="Or tell us what you’re looking for…"
+              value={request}
+              onChange={(e) => setRequest(e.target.value)}
+            />
+          </label>
+          <div className="mood-submit">
+            <p>
+              Only books you already own,
+              <br className="mobile-break" /> and haven’t read yet.
+            </p>
+            <Button busy={busy}>
+              Find my next read <ArrowRight size={18} />
+            </Button>
           </div>
-        </section>
+          <ErrorMessage message={error} />
+        </form>
+      </section>
+      {book && primary ? (
+        <>
+          <section className="recommendation-feature" aria-label="Primary recommendation">
+            <Link
+              to={`/books/${book.id}`}
+              aria-label={`Explore ${book.title}`}
+              className="feature-cover"
+            >
+              <Cover book={book} large />
+            </Link>
+            <div className="feature-content">
+              <span className="recommend-label">
+                <Sparkles size={15} />
+                Read this next
+              </span>
+              <Link to={`/books/${book.id}`}>
+                <h2>{book.title}</h2>
+              </Link>
+              <p className="feature-author">{book.author}</p>
+              {book.records.find((record) => record.memberId === memberId)?.rating && (
+                <span className="rating">
+                  ★ {book.records.find((record) => record.memberId === memberId)?.rating} / 5
+                </span>
+              )}
+              <p className="feature-reason">{primary.explanation}</p>
+            </div>
+            <ReadingListButton book={book} memberId={memberId} />
+          </section>
+          {recommendations && recommendations.length > 1 && (
+            <section className="more-recommendations">
+              <h2>More for you</h2>
+              {recommendations.slice(1).map((rec) => {
+                const book = data.books.find((book) => book.id === rec.bookId);
+                return book ? (
+                  <BookRow
+                    key={book.id}
+                    book={book}
+                    detail={rec.explanation}
+                    action={
+                      <Link
+                        className="icon-button subtle"
+                        to={`/books/${book.id}`}
+                        aria-label={`Explore ${book.title}`}
+                      >
+                        <ArrowRight size={20} />
+                      </Link>
+                    }
+                  />
+                ) : null;
+              })}
+            </section>
+          )}
+        </>
+      ) : recommendations ? (
+        <div className="empty">
+          <h2>You’ve explored every unread book</h2>
+          <p>Add a book or update your reading history to discover something new.</p>
+          <Link to="/library" className="button secondary">
+            Our Library
+          </Link>
+        </div>
+      ) : (
+        <div className="recommendation-invitation">
+          <div className="orbit-symbol" aria-hidden="true">
+            <Sparkles size={34} />
+          </div>
+          <h2>
+            A great story.
+            <br />
+            Already close to home.
+          </h2>
+          <p>Choose your mood. We’ll take a fresh look at your shelves.</p>
+        </div>
       )}
-    </>
+      <p className="demo-note">
+        A little preview: suggestions currently use simple preference matching.
+      </p>
+    </div>
   );
 }

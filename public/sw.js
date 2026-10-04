@@ -1,5 +1,5 @@
 // Cache only a public offline notice. Household data and API responses stay network-only.
-const CACHE = 'pagerove-offline-v2';
+const CACHE = 'pagerove-offline-v3';
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) => cache.addAll(['/offline.html', '/offline.css'])),

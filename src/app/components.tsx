@@ -1,9 +1,37 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { LoaderCircle } from 'lucide-react';
-import type { LibraryBook } from '../domain/types';
+import type { LibraryBook, Member, ReadingStatus } from '../domain/types';
 import { readingStatus, statusLabels } from '../domain/library';
 import { useLibrary } from './context';
+import { demoCover } from './demo-covers';
+
+export function Brand({ compact = false }: { compact?: boolean }) {
+  return (
+    <span className={`brand ${compact ? 'compact' : ''}`}>
+      <img src="/brand/mark.svg" alt="" />
+      <span>PageRove</span>
+    </span>
+  );
+}
+export function Avatar({
+  member,
+  small = false,
+  index = 0,
+}: {
+  member: Pick<Member, 'displayName'>;
+  small?: boolean;
+  index?: number;
+}) {
+  return (
+    <span className={`avatar avatar-${index % 4} ${small ? 'small' : ''}`} aria-hidden="true">
+      {member.displayName.trim().slice(0, 1)}
+    </span>
+  );
+}
+export function StatusBadge({ status }: { status: ReadingStatus }) {
+  return <span className={`status ${status}`}>{statusLabels[status]}</span>;
+}
 export function ErrorMessage({ message }: { message: string }) {
   return message ? (
     <p className="error" role="alert">
@@ -14,8 +42,7 @@ export function ErrorMessage({ message }: { message: string }) {
 export function Button({ busy, children }: { busy: boolean; children: ReactNode }) {
   return (
     <button className="button primary" disabled={busy}>
-      {busy ? <LoaderCircle className="spin" size={18} /> : null}
-      {children}
+      {busy && <LoaderCircle className="spin" size={18} />} {children}
     </button>
   );
 }
@@ -60,68 +87,97 @@ export function PageHeading({
     </div>
   );
 }
-const coverColors = ['clay', 'forest', 'gold', 'blue', 'berry', 'sage'];
 export function Cover({ book, large = false }: { book: LibraryBook; large?: boolean }) {
+  const source = book.coverUrl || demoCover(book);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
   const hash = [...book.title].reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return (
-    <div
-      className={`book-cover ${coverColors[hash % coverColors.length]} ${large ? 'large' : ''}`}
-      aria-hidden="true"
-    >
-      {book.coverUrl ? (
-        <img src={book.coverUrl} alt="" loading="lazy" />
+    <div className={`book-cover tone-${hash % 4} ${large ? 'large' : ''}`} aria-hidden="true">
+      {source && source !== failedSource ? (
+        <img
+          src={source}
+          alt=""
+          loading={large ? 'eager' : 'lazy'}
+          decoding="async"
+          onError={() => setFailedSource(source)}
+        />
       ) : (
-        <>
-          <span className="cover-frame" />
+        <div className="cover-placeholder">
           <span className="cover-author">{book.author}</span>
           <span className="cover-title">{book.title}</span>
-          <span className="cover-art">
-            <span />
-            <span />
-            <span />
-          </span>
-          <span className="cover-bottom">A story waiting for you</span>
-        </>
+          <span className="cover-orbit" />
+          <span className="cover-imprint">PAGEROVE COLLECTION</span>
+        </div>
       )}
     </div>
   );
 }
 export function BookCard({ book }: { book: LibraryBook }) {
-  const { memberId, data } = useLibrary();
-  const status = readingStatus(book, memberId),
-    rating = book.records.find((record) => record.memberId === memberId)?.rating;
-  const readers = data.members.filter((member) => readingStatus(book, member.id) === 'read');
+  const { memberId } = useLibrary();
   return (
     <article className="book-card">
       <Link to={`/books/${book.id}`} className="book-card-link">
         <Cover book={book} />
-        <div className="book-card-content">
-          <p className="book-category">
-            {book.categories[0] ?? 'Your collection'}
-            <span>{book.format}</span>
-          </p>
+        <h3>{book.title}</h3>
+        <p className="book-author">{book.author}</p>
+      </Link>
+      <StatusBadge status={readingStatus(book, memberId)} />
+    </article>
+  );
+}
+export function BookRow({
+  book,
+  detail,
+  action,
+}: {
+  book: LibraryBook;
+  detail?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <article className="book-row">
+      <Link to={`/books/${book.id}`} className="book-row-link">
+        <Cover book={book} />
+        <div>
           <h3>{book.title}</h3>
           <p className="book-author">{book.author}</p>
+          {detail && <p className="row-detail">{detail}</p>}
         </div>
       </Link>
-      <div className="book-meta">
-        <span className={`status ${status}`}>
-          <span />
-          {statusLabels[status]}
-        </span>
-        {rating ? (
-          <span className="rating" aria-label={`${rating} out of 5 stars`}>
-            {'★'.repeat(rating)}
-          </span>
-        ) : readers.length ? (
-          <span
-            className="readers"
-            title={`Read by ${readers.map((member) => member.displayName).join(', ')}`}
-          >
-            {readers.map((member) => member.displayName).join(', ')}
-          </span>
-        ) : null}
-      </div>
+      {action}
     </article>
+  );
+}
+export function SectionHeading({
+  title,
+  link,
+  label = 'See all',
+}: {
+  title: string;
+  link?: string;
+  label?: string;
+}) {
+  return (
+    <div className="section-heading">
+      <h2>{title}</h2>
+      {link && (
+        <Link to={link}>
+          {label}
+          <span aria-hidden="true"> →</span>
+        </Link>
+      )}
+    </div>
+  );
+}
+export function BookStack() {
+  return (
+    <div className="book-stack" aria-hidden="true">
+      <span className="stack-book coral-book">Same books.</span>
+      <span className="stack-book sage-book">New stories.</span>
+      <span className="stack-book navy-book">Further together.</span>
+      <span className="stack-book sand-book">Books take you places.</span>
+      <span className="stack-leaf leaf-one" />
+      <span className="stack-leaf leaf-two" />
+    </div>
   );
 }

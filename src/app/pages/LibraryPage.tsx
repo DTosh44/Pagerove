@@ -1,107 +1,61 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BookOpen, Camera, Plus, Search } from 'lucide-react';
+import { BookOpen, Camera, Plus, Search } from 'lucide-react';
 import type { ReadingStatus } from '../../domain/types';
 import { statuses } from '../../domain/types';
-import { filterLibrary, readingStatus, statusLabels } from '../../domain/library';
+import { filterLibrary, statusLabels } from '../../domain/library';
 import { useLibrary } from '../context';
 import { PageHeading, BookCard } from '../components';
 export function LibraryPage() {
   const { data, memberId } = useLibrary(),
     [query, setQuery] = useState(''),
     [filter, setFilter] = useState<ReadingStatus | 'all'>('all');
-  const books = filterLibrary(data.books, memberId, filter, query),
-    member = data.members.find((item) => item.id === memberId);
-  const reading = data.books.filter((book) => readingStatus(book, memberId) === 'reading').length;
-  const unread = data.books.filter((book) => readingStatus(book, memberId) === 'unread').length;
+  const books = [...filterLibrary(data.books, memberId, filter, query)].sort((a, b) =>
+      a.title.localeCompare(b.title),
+    ),
+    member = data.members.find((person) => person.id === memberId);
   return (
     <>
       <PageHeading
-        eyebrow="A home for your stories"
-        title="Your library"
-        description="Old favourites. New discoveries. All on your own shelves."
+        title="Our Library"
+        description="Your books. New possibilities."
         action={
-          <Link className="button primary" to="/books/new">
-            <Plus size={18} />
-            Add a book
-          </Link>
+          <div className="heading-actions">
+            <Link className="icon-button subtle" to="/scan" aria-label="Scan your books">
+              <Camera size={22} />
+            </Link>
+            <Link className="icon-button filled" to="/books/new" aria-label="Add a book">
+              <Plus size={22} />
+            </Link>
+          </div>
         }
       />
-      <div className="library-intro">
-        <div className="welcome-panel">
-          <p className="eyebrow">THE NEXT CHAPTER</p>
-          <h2>
-            Something wonderful
-            <br />
-            is already on your shelf.
-          </h2>
-          <p>
-            You don’t always need a new book.
-            <br />
-            Sometimes you just need a fresh pair of eyes.
-          </p>
-          <Link to="/recommendations">
-            Find your next read <ArrowRight size={17} />
-          </Link>
-          <div className="shelf-art" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-        </div>
-        <div className="stats-panel">
-          <p>{member?.displayName}’s reading corner</p>
-          <div>
-            <strong>{data.books.length}</strong>
-            <span>books at home</span>
-          </div>
-          <div>
-            <strong>{unread}</strong>
-            <span>yet to discover</span>
-          </div>
-          <div>
-            <strong>{reading}</strong>
-            <span>being enjoyed</span>
-          </div>
-        </div>
-      </div>
-      <div className="collection-heading">
-        <h2>
-          On your shelves <span>{data.books.length}</span>
-        </h2>
-        <Link to="/scan">
-          <Camera size={17} />
-          Scan a shelf
-        </Link>
-      </div>
       <div className="library-tools">
         <div className="filter-tabs" aria-label="Filter by reading status">
           {(['all', ...statuses] as const).map((status) => (
             <button
               key={status}
-              aria-pressed={filter === status}
               className={filter === status ? 'active' : ''}
+              aria-pressed={filter === status}
               onClick={() => setFilter(status)}
             >
-              {status === 'all' ? 'All books' : statusLabels[status]}
+              {status === 'all' ? 'All' : statusLabels[status]}
             </button>
           ))}
         </div>
         <label className="search">
-          <Search size={18} />
+          <Search size={20} />
           <input
             aria-label="Search title or author"
-            placeholder="Search title or author"
+            placeholder="Find a title or author"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
       </div>
       <p className="results-label">
-        {books.length} {books.length === 1 ? 'book' : 'books'} · Reading history for{' '}
-        {member?.displayName}
+        {books.length} {books.length === 1 ? 'book' : 'books'} on your shelves{' '}
+        <span>· {member?.displayName}’s reading journey</span>
       </p>
       {books.length ? (
         <div className="book-grid">
@@ -111,20 +65,26 @@ export function LibraryPage() {
         </div>
       ) : (
         <div className="empty">
-          <BookOpen />
+          <BookOpen size={34} />
           <h2>
-            {data.books.length ? 'No books match this view' : 'Your first chapter starts here'}
+            {data.books.length ? 'A different chapter, perhaps?' : 'Your first chapter starts here'}
           </h2>
           <p>
             {data.books.length
               ? 'Try another search or reading status.'
               : 'Add a book you own to start your household library.'}
           </p>
-          <Link to="/books/new" className="button secondary">
+          <Link to="/books/new" className="button primary">
             Add a book
           </Link>
         </div>
       )}
+      <div className="library-end">
+        <span>Books take you places.</span>
+        <Link to="/scan">
+          A whole shelf to add? <Camera size={18} />
+        </Link>
+      </div>
     </>
   );
 }
