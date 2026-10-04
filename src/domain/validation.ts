@@ -68,3 +68,7 @@ export const lookupInput = z
     isbn: z.string().trim().max(20).optional(),
   })
   .refine((value) => value.title || value.isbn, 'Enter a title or ISBN.');
+
+export const bulkCandidateInput = z.object({
+  excludeIds: z.array(z.string().min(1).max(100)).max(60).default([]),
+});

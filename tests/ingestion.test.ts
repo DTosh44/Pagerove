@@ -394,6 +394,22 @@ describe('ingestion persistence and household API boundaries', () => {
       isbn: '9780140328721',
     });
     expect(secondEdition.id).not.toBe(a.id);
+    const unknown = await repo.addBook('household-demo', {
+      title: 'A newly identified edition',
+      author: 'Writer',
+      format: 'unknown',
+      isbn: '9780804429573',
+    });
+    const confirmed = await repo.addBook('household-demo', {
+      title: 'A newly identified edition',
+      author: 'Writer',
+      format: 'paperback',
+      isbn: '9780804429573',
+    });
+    expect(confirmed.id).toBe(unknown.id);
+    expect((await repoState(db)).books.find((book) => book.id === unknown.id)?.format).toBe(
+      'paperback',
+    );
     const other = new Repository(db, 'other-user');
     await other.createHousehold('Other', 'Parent');
     const household = await other.household();
@@ -419,6 +435,13 @@ describe('ingestion persistence and household API boundaries', () => {
     const scan = await repo.scan('household-demo', scanId);
     expect(scan.candidates).toHaveLength(3);
     expect(scan.candidates[0].sourceImageIds).toEqual(['image1', 'image2']);
+    const excluded = (await (
+      await call(db, `/scans/${scanId}/accept-confident`, 'POST', {
+        excludeIds: [scan.candidates[0].id],
+      })
+    ).json()) as Scan;
+    expect(excluded.candidates[0].confirmationState).toBe('pending');
+    expect(excluded.candidates[1].confirmationState).toBe('accepted');
     const accepted = (await (
       await call(db, `/scans/${scanId}/accept-confident`, 'POST', {})
     ).json()) as Scan;

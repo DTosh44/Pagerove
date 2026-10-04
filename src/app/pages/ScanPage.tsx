@@ -11,10 +11,16 @@ function CandidateCard({
   candidate,
   scanId,
   onUpdate,
+  onDirty,
+  dirty,
+  locked,
 }: {
   candidate: Candidate;
   scanId: string;
   onUpdate: (scan: Scan) => void;
+  onDirty: (id: string, dirty: boolean) => void;
+  dirty: boolean;
+  locked: boolean;
 }) {
   const [title, setTitle] = useState(candidate.metadata?.title ?? candidate.probableTitle),
     [author, setAuthor] = useState(
@@ -27,6 +33,11 @@ function CandidateCard({
     { busy, error, run } = useAction(),
     { refresh, notify } = useLibrary();
   const pending = candidate.confirmationState === 'pending';
+  const chosen =
+    candidate.alternatives.find((match) => match.metadata.id === selected)?.metadata ??
+    candidate.metadata;
+  const preview =
+    chosen && title === chosen.title && author === chosen.authors.join(', ') ? chosen : null;
   async function act(action: 'accept' | 'reject') {
     await run(async () => {
       const scan = await api<Scan>(
@@ -37,6 +48,7 @@ function CandidateCard({
           : { action },
       );
       onUpdate(scan);
+      onDirty(candidate.id, false);
       await refresh();
       if (action === 'accept') notify('Confirmed book saved in your library.');
     });
@@ -54,138 +66,160 @@ function CandidateCard({
   }
   return (
     <article className="panel candidate">
-      <p className={`confidence ${candidate.band === 'HIGH' ? '' : 'check'}`}>
-        {candidate.band === 'HIGH' ? 'Confident match' : 'Needs checking'} ·{' '}
-        {Math.round(candidate.confidence * 100)}%
-      </p>
-      <div className="candidate-book">
-        {candidate.metadata && <MetadataCover book={candidate.metadata} />}
-        <div>
-          <h3>{candidate.metadata?.title ?? candidate.probableTitle}</h3>
-          <p>{candidate.metadata?.authors.join(', ') ?? candidate.probableAuthor}</p>
-          <small>{candidate.metadata?.format ?? 'Format unknown'}</small>
+      <fieldset
+        className="candidate-fields"
+        aria-label={`Review ${title}`}
+        disabled={locked || busy}
+      >
+        <p className={`confidence ${candidate.band === 'HIGH' && !dirty ? '' : 'check'}`}>
+          {dirty ? (
+            'Edited details · review before accepting'
+          ) : (
+            <>
+              {candidate.band === 'HIGH' ? 'Confident match' : 'Needs checking'} ·{' '}
+              {Math.round(candidate.confidence * 100)}%
+            </>
+          )}
+        </p>
+        <div className="candidate-book">
+          {preview && <MetadataCover book={preview} />}
+          <div>
+            <h3>{title}</h3>
+            <p>{author}</p>
+            <small>{format === 'unknown' ? 'Format unknown' : format}</small>
+          </div>
         </div>
-      </div>
-      {candidate.warning && <p>{candidate.warning}</p>}
-      {pending && candidate.alternatives.length > 0 && (
-        <details>
-          <summary>
-            {candidate.alternatives.length} possible{' '}
-            {candidate.alternatives.length === 1 ? 'match' : 'matches'} · choose an edition
-          </summary>
-          <MetadataOptions
-            matches={candidate.alternatives}
-            selected={selected}
-            onSelect={(book) => {
-              setSelected(book.id);
-              setTitle(book.title);
-              setAuthor(book.authors.join(', '));
-              setIsbn(book.isbn13 ?? book.isbn10 ?? '');
-              setFormat(book.format);
-            }}
-          />
-        </details>
-      )}
-      <MetadataSource book={candidate.metadata} />
-      <label>
-        Title
-        <input
-          aria-label={`Candidate title ${candidate.probableTitle}`}
-          value={title}
-          maxLength={200}
-          onChange={(event) => {
-            setTitle(event.target.value);
-            setSelected(undefined);
-            setIsbn('');
-          }}
-          disabled={!pending}
-        />
-      </label>
-      <label>
-        Author
-        <input
-          aria-label={`Candidate author ${candidate.probableTitle}`}
-          value={author}
-          maxLength={200}
-          onChange={(event) => {
-            setAuthor(event.target.value);
-            setSelected(undefined);
-            setIsbn('');
-          }}
-          disabled={!pending}
-        />
-      </label>
-      {pending && (
-        <details>
-          <summary>Edit ISBN and format</summary>
-          <label>
-            ISBN
-            <input
-              aria-label={`Candidate ISBN ${candidate.probableTitle}`}
-              value={isbn}
-              maxLength={20}
-              onChange={(event) => {
-                setIsbn(event.target.value);
-                setSelected(undefined);
+        {candidate.warning && <p>{candidate.warning}</p>}
+        {pending && candidate.alternatives.length > 0 && (
+          <details>
+            <summary>
+              {candidate.alternatives.length} possible{' '}
+              {candidate.alternatives.length === 1 ? 'match' : 'matches'} · choose an edition
+            </summary>
+            <MetadataOptions
+              matches={candidate.alternatives}
+              selected={selected}
+              onSelect={(book) => {
+                onDirty(candidate.id, true);
+                setSelected(book.id);
+                setTitle(book.title);
+                setAuthor(book.authors.join(', '));
+                setIsbn(book.isbn13 ?? book.isbn10 ?? '');
+                setFormat(book.format);
               }}
             />
-          </label>
-          <label>
-            Format
-            <select
-              value={format}
-              onChange={(event) => setFormat(event.target.value as typeof format)}
+          </details>
+        )}
+        <MetadataSource book={preview} />
+        <label>
+          Title
+          <input
+            aria-label={`Candidate title ${candidate.probableTitle}`}
+            value={title}
+            maxLength={200}
+            onChange={(event) => {
+              onDirty(candidate.id, true);
+              setTitle(event.target.value);
+              setSelected(undefined);
+              setIsbn('');
+            }}
+            disabled={!pending}
+          />
+        </label>
+        <label>
+          Author
+          <input
+            aria-label={`Candidate author ${candidate.probableTitle}`}
+            value={author}
+            maxLength={200}
+            onChange={(event) => {
+              onDirty(candidate.id, true);
+              setAuthor(event.target.value);
+              setSelected(undefined);
+              setIsbn('');
+            }}
+            disabled={!pending}
+          />
+        </label>
+        {pending && (
+          <details>
+            <summary>Edit ISBN and format</summary>
+            <label>
+              ISBN
+              <input
+                aria-label={`Candidate ISBN ${candidate.probableTitle}`}
+                value={isbn}
+                maxLength={20}
+                onChange={(event) => {
+                  onDirty(candidate.id, true);
+                  setIsbn(event.target.value);
+                  setSelected(undefined);
+                }}
+              />
+            </label>
+            <label>
+              Format
+              <select
+                value={format}
+                onChange={(event) => {
+                  onDirty(candidate.id, true);
+                  setFormat(event.target.value as typeof format);
+                }}
+              >
+                {formats.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+          </details>
+        )}
+        {pending && (
+          <>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={busy || (!title.trim() && !isbn)}
+              onClick={search}
             >
-              {formats.map((value) => (
-                <option key={value}>{value}</option>
-              ))}
-            </select>
-          </label>
-        </details>
-      )}
-      {pending && (
-        <>
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busy || (!title.trim() && !isbn)}
-            onClick={search}
-          >
-            <Search size={16} />
-            Search metadata
-          </button>
-          <label className="copy-choice">
-            <input
-              type="checkbox"
-              checked={additionalCopy}
-              onChange={(event) => setAdditionalCopy(event.target.checked)}
-            />
-            I own another copy of this edition
-          </label>
-        </>
-      )}
-      <ErrorMessage message={error} />
-      {pending ? (
-        <div className="candidate-actions">
-          <button
-            className="button primary"
-            disabled={busy || !title.trim() || !author.trim()}
-            onClick={() => void act('accept')}
-          >
-            <Check size={17} />
-            Accept
-          </button>
-          <button className="button secondary" disabled={busy} onClick={() => void act('reject')}>
-            <X size={17} />
-            Reject
-          </button>
-        </div>
-      ) : (
-        <p className="confirmed">
-          <Check size={16} />
-          {candidate.confirmationState === 'accepted' ? 'Added to your library' : 'Rejected'}
-        </p>
-      )}
+              <Search size={16} />
+              Search metadata
+            </button>
+            <label className="copy-choice">
+              <input
+                type="checkbox"
+                checked={additionalCopy}
+                onChange={(event) => {
+                  onDirty(candidate.id, true);
+                  setAdditionalCopy(event.target.checked);
+                }}
+              />
+              I own another copy of this edition
+            </label>
+          </>
+        )}
+        <ErrorMessage message={error} />
+        {pending ? (
+          <div className="candidate-actions">
+            <button
+              className="button primary"
+              disabled={busy || !title.trim() || !author.trim()}
+              onClick={() => void act('accept')}
+            >
+              <Check size={17} />
+              Accept
+            </button>
+            <button className="button secondary" disabled={busy} onClick={() => void act('reject')}>
+              <X size={17} />
+              Reject
+            </button>
+          </div>
+        ) : (
+          <p className="confirmed">
+            <Check size={16} />
+            {candidate.confirmationState === 'accepted' ? 'Added to your library' : 'Rejected'}
+          </p>
+        )}
+      </fieldset>
     </article>
   );
 }
@@ -204,6 +238,7 @@ export function ScanPage() {
       externalImages: boolean;
     } | null>(null),
     [uncertainOnly, setUncertainOnly] = useState(false),
+    [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set()),
     [recent, setRecent] = useState<{ id: string; status: string }[]>([]);
   useEffect(() => {
     api<typeof config>('/ingestion/config')
@@ -233,6 +268,7 @@ export function ScanPage() {
       setScan(null);
       setPhotos([]);
       setUncertainOnly(false);
+      setDirtyIds(new Set());
     }
     return () => {
       active = false;
@@ -275,7 +311,17 @@ export function ScanPage() {
   }
   const pending =
       scan?.candidates.filter((candidate) => candidate.confirmationState === 'pending') ?? [],
-    confident = pending.filter((candidate) => candidate.band === 'HIGH').length;
+    confident = pending.filter(
+      (candidate) => candidate.band === 'HIGH' && !dirtyIds.has(candidate.id),
+    ).length;
+  function markDirty(id: string, dirty: boolean) {
+    setDirtyIds((current) => {
+      const next = new Set(current);
+      if (dirty) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
   function choosePhotos(files: FileList | null, append = false) {
     const incoming = Array.from(files ?? []);
     const next = append ? [...photos, ...incoming] : incoming;
@@ -439,7 +485,7 @@ export function ScanPage() {
                     const result = await api<Scan & { failures: string[] }>(
                       `/scans/${scan.id}/accept-confident`,
                       'POST',
-                      {},
+                      { excludeIds: [...dirtyIds] },
                     );
                     setScan(result);
                     setUncertainOnly(true);
@@ -504,6 +550,9 @@ export function ScanPage() {
                   candidate={candidate}
                   scanId={scan.id}
                   onUpdate={setScan}
+                  dirty={dirtyIds.has(candidate.id)}
+                  locked={busy}
+                  onDirty={markDirty}
                 />
               ))}
           </section>

@@ -3193,3 +3193,9 @@ footer > span {
   min-width: 44px;
   min-height: 44px;
 }
+.candidate-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}

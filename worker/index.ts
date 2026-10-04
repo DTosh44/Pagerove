@@ -1,6 +1,7 @@
 import { ZodError, type ZodType } from 'zod';
 import {
   bookInput,
+  bulkCandidateInput,
   candidateInput,
   historyInput,
   householdInput,
@@ -225,8 +226,10 @@ export default {
         return json(await repo.scan(household.id, scan.id));
       }
       const bulkRoute = url.pathname.match(/^\/api\/scans\/([^/]+)\/accept-confident$/);
-      if (request.method === 'POST' && bulkRoute)
-        return json(await repo.bulkAccept(household.id, bulkRoute[1]));
+      if (request.method === 'POST' && bulkRoute) {
+        const input = await body(request, bulkCandidateInput);
+        return json(await repo.bulkAccept(household.id, bulkRoute[1], input.excludeIds));
+      }
       const searchRoute = url.pathname.match(
         /^\/api\/scans\/([^/]+)\/candidates\/([^/]+)\/search$/,
       );

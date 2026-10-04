@@ -27,7 +27,27 @@ test('multiple shelf photos, bulk accept, uncertain review and resume remain acc
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
     .analyze();
   expect(result.violations.map((violation) => violation.id)).toEqual([]);
+  const correctedTitle = `Edited shelf book ${Date.now()}`;
+  await page.getByLabel('Candidate title The Secret Garden').fill(correctedTitle);
+  await expect(page.getByText('1 confident', { exact: true })).toBeVisible();
+  let releaseBulk!: () => void;
+  const bulkGate = new Promise<void>((resolve) => {
+    releaseBulk = resolve;
+  });
+  await page.route('**/api/scans/*/accept-confident', async (route) => {
+    await bulkGate;
+    await route.continue();
+  });
   await page.getByRole('button', { name: 'Accept all confident books' }).click();
+  try {
+    await expect(page.getByLabel('Candidate title The Secret Garden')).toBeDisabled();
+  } finally {
+    releaseBulk();
+  }
+
+  await expect(page.locator('.candidate')).toHaveCount(2);
+  await expect(page.getByLabel('Candidate title The Secret Garden')).toHaveValue(correctedTitle);
+  await page.getByRole('button', { name: 'Accept', exact: true }).first().click();
   await expect(page.locator('.candidate')).toHaveCount(1);
   await expect(page.getByText('1 need checking', { exact: true })).toBeVisible();
   await page.locator('.candidate summary').first().click();

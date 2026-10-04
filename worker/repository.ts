@@ -198,6 +198,12 @@ export class Repository {
         ),
       this.db
         .prepare(
+          "UPDATE book_editions SET format=? WHERE id=? AND format='unknown' AND ?!='unknown'" +
+            guard,
+        )
+        .bind(input.format, editionId, input.format, ...params),
+      this.db
+        .prepare(
           'INSERT INTO household_books(id,household_id,edition_id) SELECT ?,?,? WHERE (?=1 OR NOT EXISTS (SELECT 1 FROM household_books WHERE household_id=? AND edition_id=?))' +
             guard,
         )
@@ -427,11 +433,14 @@ export class Repository {
       .run();
     return this.scan(householdId, scanId);
   }
-  async bulkAccept(householdId: string, scanId: string) {
+  async bulkAccept(householdId: string, scanId: string, excludeIds: string[] = []) {
     const scan = await this.scan(householdId, scanId);
     const failures: string[] = [];
     for (const candidate of scan.candidates.filter(
-      (item) => item.band === 'HIGH' && item.confirmationState === 'pending',
+      (item) =>
+        item.band === 'HIGH' &&
+        item.confirmationState === 'pending' &&
+        !excludeIds.includes(item.id),
     )) {
       try {
         await this.confirmCandidate(householdId, scanId, candidate.id, 'accept');
