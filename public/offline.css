@@ -1,0 +1,17 @@
+body {
+  background: #fbfaf7;
+  color: #294c3e;
+  font: 16px system-ui;
+  margin: 15vh auto;
+  padding: 30px;
+  max-width: 450px;
+}
+h1 {
+  font: 36px Georgia;
+}
+p {
+  line-height: 1.7;
+}
+a {
+  color: inherit;
+}
