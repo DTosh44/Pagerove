@@ -31,7 +31,7 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
-# Or all four:
+# Or all checks:
 pnpm check
 
 # Browser journey (uses the seeded local database and adds test books):
@@ -60,15 +60,13 @@ React + Vite is a small SPA with React Router, deployed alongside a Worker API u
 
 All API reads and writes resolve household ownership on the server. Account-to-household membership is a join table; the initial journey selects one household without putting that assumption into the schema. Children are household profiles, never independent accounts, and no birth dates are collected.
 
-A `Book` is a conceptual work, a `BookEdition` is its format/ISBN, and a `HouseholdBook` is an owned copy. Independent reading records and ratings point to that copy and profile. Composite foreign keys prevent cross-household relationships. Batch writes are transactional. Manual addition currently creates a new work/edition/copy; shared catalogue deduplication is a future extension.
+A `Book` is a conceptual work, a `BookEdition` is its format/ISBN, and a `HouseholdBook` is an owned copy. Independent reading records and ratings point to that copy and profile. Composite foreign keys prevent cross-household relationships. Batch writes are transactional. Manual and scanned additions now match existing works/editions and reuse household copies, unless another owned copy is explicitly confirmed.
 
 The schema also includes book locations, scan sessions/images/candidates, recommendation sessions/results and reading plans. Visibility/lendability/exchangeability/current-holder/acquisition-date columns prepare the owned-copy model for later work but are not exposed as unfinished features.
 
 Recommendation eligibility is enforced **before and after** the provider: only household-owned copies with `unread` status for the selected profile qualify. Missing reading records count as unread; `reading`, `read` and `want_to_read` do not qualify. Results are deduplicated and capped at three, then persisted with their explanation and provider identifier. Deterministic keyword/category/preference matching is the initial provider. It does not infer a child’s age suitability; review choices with young readers.
 
-Scanning deliberately returns **three sample matches** from a mock provider. The confirmation UI derives found/confident/needs-checking counts from candidates, with editable titles/authors and accept/reject actions. Accepted results use the same book-creation pipeline as manual additions. SQL guards make repeat or concurrent acceptance idempotent. Sessions can be reopened at `/scan/:scanId`. Only filename, size and MIME type are saved; image bytes stay on-device, with no object-storage infrastructure yet. `storage_key` and source references are ready for a later upload adapter.
-
-`BookRecognitionProvider`, `BookMetadataProvider` and `RecommendationProvider` are independent of any vendor. Mock ISBN metadata lookup returns `null`; ISBN entry stores the identifier without pretending to enrich it. No scraping or commercial services are introduced.
+Scanning now supports one to three actual photos, separate recognition and metadata adapters, independent confidence scoring, alternate editions, bulk acceptance and resumable correction. Defaults stay mock and return three sample books; opt-in real adapters use OpenAI vision and Google Books. Photos are uploaded through the backend and discarded after processing; real mode sends them to OpenAI. ISBN lookup and manual entry use the same matching/persistence service. See [ingestion architecture, privacy, provider terms and readiness](docs/ingestion/README.md) before enabling external calls.
 
 ## Routes and API
 
@@ -91,10 +89,10 @@ Scanning deliberately returns **three sample matches** from a mock provider. The
 | `GET /api/state`                    | Current household, profiles and library              |
 | `POST /api/households`              | Create household and initial adult profile           |
 | `POST /api/members`                 | Add reading profile/preferences                      |
-| `POST /api/books`                   | Create work, edition and owned copy                  |
+| `POST /api/books`                   | Match/reuse work, edition and owned copy             |
 | `PUT /api/history`                  | Transactional per-profile bulk history/rating update |
 | `POST /api/recommendations`         | Generate/persist owned-unread suggestions            |
-| `POST /api/scans`                   | Create sample recognition session                    |
+| `POST /api/scans`                   | Create photo recognition session                     |
 | `GET /api/scans/:id`                | Resume confirmation                                  |
 | `PUT /api/scans/:id/candidates/:id` | Accept/edit or reject a candidate                    |
 
@@ -111,7 +109,7 @@ The configuration is deployable after supplying your own D1 database ID. This ta
 
 For an intentionally public, fictional-data preview, use the separate `demo` environment: create `pagerove-demo`, replace its ID in `env.demo.d1_databases`, apply migrations with `--env demo --remote`, optionally execute `db/seed.sql` against `pagerove-demo --env demo --remote`, then build/deploy using `CLOUDFLARE_ENV=demo pnpm build` and `pnpm exec wrangler deploy --env demo`. Everyone shares one writable demo account; do not enter private information. Protect or reset a public demo as needed. The default environment stays locked.
 
-Local settings/secrets live in ignored `.dev.vars`; remote secrets use `pnpm exec wrangler secret put NAME`. Never place secrets in `VITE_*` variables, which are public browser configuration. No external credentials are currently needed. Built outputs (including local runtime files) are ignored and must not be committed. Deploy via Wrangler rather than uploading the build directory indiscriminately.
+Local settings/secrets live in ignored `.dev.vars`; remote secrets use `pnpm exec wrangler secret put NAME`. Never place secrets in `VITE_*` variables, which are public browser configuration. No external credentials are needed in default mock mode. Real-provider configuration is documented in the ingestion guide. Built outputs (including local runtime files) are ignored and must not be committed. Deploy via Wrangler rather than uploading the build directory indiscriminately.
 
 ## PWA and accessibility
 
@@ -122,11 +120,11 @@ Responsive layouts support narrow mobile screens, keyboard focus, labelled contr
 ## Known limitations and next steps
 
 - Real account sign-in and private household provisioning are the first production prerequisite; current functionality runs in explicit shared demo mode only.
-- Recognition is a sample flow, metadata is a no-result mock, recommendations use deterministic matching. Choose providers only after evaluating privacy, cost and quality.
-- Work/edition deduplication, catalogue enrichment and ISBN validation/lookup are next library improvements.
+- Real adapters require an explicit local opt-in and provider credentials/terms review. Live accuracy, provider retention agreements and commercial metadata rights remain rollout prerequisites. Recommendations retain deterministic matching.
+- ISBN-less editions and fuzzy work identities can remain ambiguous; confirmation is required. Large scans need durable queued processing.
 - Profiles support creation and preferences at creation; editing/removal, household switching and account lifecycle are future work.
-- Reading plans exist in the schema only. Pagination, abuse controls, robust request-size streaming limits and operational monitoring should precede a larger rollout.
+- Reading plans exist in the schema only. Catalog indexing/pagination, broader abuse controls, metadata retention/deletion and operational monitoring should precede a larger rollout.
 - Reading status is per owned copy. A future work-level reading view may aggregate multiple editions/copies without losing copy ownership.
 - No social network, borrowing, exchange, postage, commerce, Kindle integration or paywalls are implemented.
 
-The core product remains free. The next usable milestone should focus on verified accounts, household/profile editing, and a small private trial of the manual-library journey before real scanning or AI.
+The core product remains free. The next usable milestone should focus on verified accounts, household/profile editing, and a small private trial of the manual-library journey with a credentialed shelf-recognition trial.

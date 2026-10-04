@@ -3,13 +3,31 @@ import type {
   BookMetadataProvider,
   RecommendationProvider,
 } from './interfaces';
+const mockCatalog = [
+  ['The Secret Garden', 'Frances Hodgson Burnett'],
+  ['A Walk in the Woods', 'Bill Bryson'],
+  ['The Little Prince', 'Antoine de Saint-Exupéry'],
+].map(([title, author], index) => ({
+  id: `mock:${index}`,
+  provider: 'mock',
+  sourceId: String(index),
+  title,
+  authors: [author],
+  format: 'paperback' as const,
+  categories: ['Fiction'],
+  year: 2000 + index,
+}));
 export const mockMetadataProvider: BookMetadataProvider = {
-  async lookup() {
-    return null;
+  name: 'mock',
+  async lookupByIsbn() {
+    return [];
+  },
+  async search(query) {
+    return mockCatalog.filter((book) => book.title.toLowerCase() === query.title?.toLowerCase());
   },
 };
 export const mockRecognitionProvider: BookRecognitionProvider = {
-  name: 'mock-recognition-v1',
+  name: 'mock',
   async recognize(image) {
     return [
       {

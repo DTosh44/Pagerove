@@ -1,0 +1,149 @@
+{
+  "synthetic": true,
+  "books": [
+    {
+      "title": "The Secret Garden",
+      "author": "Frances Hodgson Burnett",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "A Walk in the Woods",
+      "author": "Bill Bryson",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "The Little Prince",
+      "author": "Antoine de Saint-Exupéry",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "Atomic Habits",
+      "author": "James Clear",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "The Hobbit",
+      "author": "J. R. R. Tolkien",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "Dune",
+      "author": "Frank Herbert",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "Dune Messiah",
+      "author": "Frank Herbert",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "Pride and Prejudice",
+      "author": "Jane Austen",
+      "orientation": "upside-down",
+      "partial": false
+    },
+    {
+      "title": "Jane Eyre",
+      "author": "Charlotte Brontë",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "Little Women",
+      "author": "Louisa May Alcott",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "The Wind in the Willows",
+      "author": "Kenneth Grahame",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "Treasure Island",
+      "author": "Robert Louis Stevenson",
+      "orientation": "vertical",
+      "partial": true
+    },
+    {
+      "title": "Dracula",
+      "author": "Bram Stoker",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "Frankenstein",
+      "author": "Mary Shelley",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "The Odyssey",
+      "author": "Homer",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "The Time Machine",
+      "author": "H. G. Wells",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "The Adventures of Sherlock Holmes",
+      "author": "Arthur Conan Doyle",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "A Room of One’s Own",
+      "author": "Virginia Woolf",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "The Great Gatsby",
+      "author": "F. Scott Fitzgerald",
+      "orientation": "upside-down",
+      "partial": false
+    },
+    {
+      "title": "Persuasion",
+      "author": "Jane Austen",
+      "orientation": "vertical",
+      "partial": false
+    },
+    {
+      "title": "The Call of the Wild",
+      "author": "Jack London",
+      "orientation": "stacked",
+      "partial": false
+    },
+    {
+      "title": "The Railway Children",
+      "author": "E. Nesbit",
+      "orientation": "stacked",
+      "partial": false
+    },
+    {
+      "title": "The Jungle Book",
+      "author": "Rudyard Kipling",
+      "orientation": "stacked",
+      "partial": false
+    },
+    {
+      "title": "Anne of Green Gables",
+      "author": "L. M. Montgomery",
+      "orientation": "stacked",
+      "partial": true
+    }
+  ]
+}

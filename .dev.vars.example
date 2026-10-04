@@ -1,1 +1,11 @@
 APP_MODE=demo
+BOOK_RECOGNITION_PROVIDER=mock
+BOOK_METADATA_PROVIDER=mock
+INGESTION_ALLOW_EXTERNAL=false
+# Local real-provider evaluation only; see docs/ingestion/README.md.
+# BOOK_RECOGNITION_PROVIDER=openai
+# BOOK_METADATA_PROVIDER=google-books
+# INGESTION_ALLOW_EXTERNAL=true
+# OPENAI_API_KEY=server-only-secret
+# OPENAI_VISION_MODEL=gpt-4.1-mini
+# GOOGLE_BOOKS_API_KEY=server-only-project-key

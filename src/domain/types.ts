@@ -1,3 +1,4 @@
+import type { BookMetadata, ConfidenceBand, MetadataMatch, RecognizedBook } from './ingestion';
 export const statuses = ['unread', 'reading', 'read', 'want_to_read'] as const;
 export type ReadingStatus = (typeof statuses)[number];
 export const formats = ['hardback', 'paperback', 'ebook', 'audiobook', 'unknown'] as const;
@@ -17,6 +18,7 @@ export interface ReadingRecord {
   finishedDate: string | null;
 }
 export interface LibraryBook {
+  metadata?: BookMetadata | null;
   id: string;
   workId: string;
   title: string;
@@ -46,12 +48,20 @@ export interface ManualBook {
   format: BookFormat;
   isbn?: string;
   categories?: string[];
+  additionalCopy?: boolean;
 }
 export interface Recommendation {
   bookId: string;
   explanation: string;
 }
 export interface Candidate {
+  region?: RecognizedBook['region'];
+  band: ConfidenceBand;
+  rawConfidence: number;
+  metadata: BookMetadata | null;
+  alternatives: MetadataMatch[];
+  sourceImageIds: string[];
+  warning?: string;
   id: string;
   probableTitle: string;
   probableAuthor: string;
@@ -64,4 +74,7 @@ export interface Candidate {
 export interface Scan {
   id: string;
   candidates: Candidate[];
+  status: string;
+  warnings: string[];
+  images: { id: string; state: string; error: string | null }[];
 }

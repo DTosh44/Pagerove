@@ -1,20 +1,18 @@
-import type { LibraryBook, ManualBook, Member, Recommendation } from '../domain/types';
+import type { LibraryBook, Member, Recommendation } from '../domain/types';
+import type { BookMetadata, BookQuery, RecognizedBook } from '../domain/ingestion';
+export interface RecognitionImage {
+  id: string;
+  mimeType: string;
+  bytes: Uint8Array;
+}
 export interface BookRecognitionProvider {
   readonly name: string;
-  recognize(image: { id: string; filename: string }): Promise<
-    Array<{
-      probableTitle: string;
-      probableAuthor: string;
-      probableIsbn: string | null;
-      confidence: number;
-      sourceImageId: string;
-    }>
-  >;
+  recognize(image: RecognitionImage): Promise<RecognizedBook[]>;
 }
 export interface BookMetadataProvider {
-  lookup(
-    isbn: string,
-  ): Promise<(ManualBook & { description?: string; coverUrl?: string; pageCount?: number }) | null>;
+  readonly name: string;
+  lookupByIsbn(isbn: string): Promise<BookMetadata[]>;
+  search(query: BookQuery): Promise<BookMetadata[]>;
 }
 export interface RecommendationProvider {
   readonly name: string;
