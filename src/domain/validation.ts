@@ -21,6 +21,8 @@ export const bookInput = z.object({
   author: z.string().trim().min(1).max(200),
   format: z.enum(formats).default('paperback'),
   isbn: z.string().trim().max(20).optional(),
+  additionalCopy: z.boolean().default(false),
+  metadataId: z.string().max(200).optional(),
   categories: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
 });
 export const historyInput = z
@@ -53,4 +55,20 @@ export const candidateInput = z.object({
   action: z.enum(['accept', 'reject']),
   title: z.string().trim().min(1).max(200).optional(),
   author: z.string().trim().min(1).max(200).optional(),
+  isbn: z.string().trim().max(20).optional(),
+  format: z.enum(formats).optional(),
+  metadataId: z.string().max(200).optional(),
+  additionalCopy: z.boolean().default(false),
+});
+
+export const lookupInput = z
+  .object({
+    title: z.string().trim().min(1).max(200).optional(),
+    author: z.string().trim().max(200).optional(),
+    isbn: z.string().trim().max(20).optional(),
+  })
+  .refine((value) => value.title || value.isbn, 'Enter a title or ISBN.');
+
+export const bulkCandidateInput = z.object({
+  excludeIds: z.array(z.string().min(1).max(100)).max(60).default([]),
 });

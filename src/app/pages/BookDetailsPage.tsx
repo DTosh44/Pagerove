@@ -6,6 +6,7 @@ import { statuses } from '../../domain/types';
 import { statusLabels } from '../../domain/library';
 import { useLibrary, useAction } from '../context';
 import { Avatar, StatusBadge, Cover, ErrorMessage, Button } from '../components';
+import { MetadataSource } from '../metadata';
 import { api } from '../api';
 function HistoryForm({ book }: { book: LibraryBook }) {
   const { memberId, refresh, notify } = useLibrary(),
@@ -126,7 +127,20 @@ export function BookDetailsPage() {
                 <dd>{book.isbn}</dd>
               </div>
             )}
+            {book.metadata?.publisher && (
+              <div>
+                <dt>Publisher</dt>
+                <dd>{book.metadata.publisher}</dd>
+              </div>
+            )}
+            {book.metadata?.year && (
+              <div>
+                <dt>Published</dt>
+                <dd>{book.metadata.year}</dd>
+              </div>
+            )}
           </dl>
+          <MetadataSource book={book.metadata ?? null} />
         </div>
       </div>
       <div className="split-layout">

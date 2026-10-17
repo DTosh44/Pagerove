@@ -38,7 +38,7 @@ The existing edition `coverUrl` takes precedence. The original demo works have a
 
 Cover URLs point directly to Open Library, following their [cover-display guidance](https://openlibrary.org/dev/docs/api/covers/). The footer credits Open Library. Jacket artwork is not downloaded into the repository, scraped from commercial websites, or presented as PageRove-owned artwork. External network availability affects cover and font rendering.
 
-Selected shelf photos use temporary object URLs and are revoked when replaced or when leaving the screen. The browser CSP allows `blob:` images for this local preview. No image bytes are uploaded or persisted, and reopening a saved scan cannot restore its original photo. The existing scan/provider boundary is unchanged.
+Selected shelf photos use temporary object URLs and are revoked when replaced or when leaving the screen. The browser CSP allows `blob:` images for this local preview. Image bytes now reach the backend for ingestion and, in opt-in real mode, OpenAI. PageRove does not persist photos, so reopening a saved scan cannot restore its original photo. See the ingestion guide for current retention details.
 
 “Add to my reading list” calls the existing history endpoint with `want_to_read`. It preserves ratings/dates and excludes the saved book from the next request under the unchanged strict-unread rule. It does not introduce reading-plan storage or change recommendation eligibility.
 
@@ -67,3 +67,7 @@ The capture script filters test-created books out of the screenshot-only library
 ## Next visual work
 
 Review the flows on physical phones, refine the exported wordmark into outlined/licensed artwork if needed, and choose a long-term cover/font asset strategy. A real household trial can inform profile editing and scanning improvements in later work. Authentication, real recognition/AI, lending, exchanges, commerce and payments are outside this design branch.
+
+## Ingestion update
+
+The third stacked PR extends the scan/add flows while retaining this visual system. Earlier screenshots show the original mock preview. Photos now reach the PageRove backend; in opt-in real mode they also reach OpenAI. See [current ingestion privacy and readiness](../ingestion/README.md) for the authoritative behavior.

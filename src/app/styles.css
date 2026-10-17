@@ -3020,3 +3020,182 @@ footer > span {
     margin-top: 0;
   }
 }
+/* Ingestion uses the existing PageRove cards, covers, buttons and spacing. */
+.candidate-book {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+.candidate-book .book-cover {
+  width: 76px;
+  flex-shrink: 0;
+}
+.candidate-book h3 {
+  margin: 0;
+}
+.candidate-book p {
+  margin: 0.4rem 0;
+}
+.candidate details {
+  margin: 1rem 0;
+}
+.candidate summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0.6rem 0;
+}
+.metadata-options {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0.8rem 0;
+}
+.metadata-option {
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  width: 100%;
+}
+.metadata-option.selected {
+  outline: 2px solid var(--ink);
+  background: var(--sand);
+}
+.metadata-option .book-cover {
+  width: 52px;
+  flex-shrink: 0;
+}
+.metadata-option span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.metadata-option small {
+  display: block;
+  margin-top: 0.4rem;
+}
+.copy-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 44px;
+  margin: 1rem 0;
+}
+.copy-choice input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.retry-photo .file-label {
+  position: relative;
+  margin-bottom: 1rem;
+}
+.lookup-panel {
+  margin-bottom: var(--space-5);
+}
+.lookup-panel form {
+  display: grid;
+  gap: 1rem;
+}
+.candidate {
+  display: block;
+}
+.candidate .copy-choice,
+.form-panel .copy-choice {
+  flex-direction: row;
+  align-items: center;
+  font-weight: 400;
+  text-align: left;
+}
+.candidate .copy-choice input,
+.form-panel .copy-choice input {
+  padding: 0;
+  width: 20px;
+  min-height: 20px;
+  height: 20px;
+}
+.candidate-book .cover-placeholder,
+.metadata-option .cover-placeholder {
+  padding: 11px 6px;
+  border-left-width: 3px;
+}
+.candidate-book .cover-author,
+.metadata-option .cover-author {
+  font-size: 4px;
+}
+.candidate-book .cover-title,
+.metadata-option .cover-title {
+  font-size: 11px;
+  margin: 9px 0;
+}
+.candidate-book .cover-imprint,
+.metadata-option .cover-imprint {
+  font-size: 3px;
+}
+.candidate-book .cover-placeholder::before,
+.metadata-option .cover-placeholder::before {
+  inset: 5px;
+}
+.candidate-book > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lookup-panel {
+  padding: var(--space-5);
+}
+.lookup-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.lookup-panel input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #ced3d6;
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--charcoal);
+}
+.add-photo.file-label {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  margin: 1rem auto;
+}
+.selected-photos {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+.selected-photos figure {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+}
+.selected-photos img {
+  width: 58px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+.selected-photos .button {
+  padding: 0.6rem;
+  min-width: 44px;
+  min-height: 44px;
+}
+.candidate-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}

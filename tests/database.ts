@@ -1,9 +1,12 @@
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 // Run the exact migrations/SQL against SQLite, with a small D1-compatible test adapter.
 export function database(seed = true) {
   const sqlite = new DatabaseSync(':memory:');
-  sqlite.exec(readFileSync('migrations/0001_initial.sql', 'utf8'));
+  for (const file of readdirSync('migrations')
+    .filter((file) => file.endsWith('.sql'))
+    .sort())
+    sqlite.exec(readFileSync(`migrations/${file}`, 'utf8'));
   if (seed) sqlite.exec(readFileSync('db/seed.sql', 'utf8'));
   function prepare(sql: string) {
     const params: (string | number | null)[] = [];

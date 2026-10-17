@@ -6,9 +6,13 @@ import type {
   ManualBook,
   Member,
   ReadingRecord,
+  Scan,
 } from '../src/domain/types';
 import type { z } from 'zod';
-import type { historyInput } from '../src/domain/validation';
+import type { candidateInput, historyInput } from '../src/domain/validation';
+
+import type { BookMetadata } from '../src/domain/ingestion';
+import { normalizeAuthor, normalizeIsbn, normalizeText, sameWork } from './ingestion/matching';
 
 export const id = () => crypto.randomUUID();
 export class Repository {
@@ -52,10 +56,15 @@ export class Repository {
       .all<Omit<Member, 'preferences'> & { preferences: string }>();
     const books = await this.db
       .prepare(
-        `SELECT hb.id,b.id AS workId,b.title,b.author,b.categories,b.description,e.format,e.isbn,e.cover_url AS coverUrl,e.page_count AS pageCount,l.name AS location FROM household_books hb JOIN book_editions e ON e.id=hb.edition_id JOIN books b ON b.id=e.book_id LEFT JOIN book_locations l ON l.id=hb.location_id WHERE hb.household_id=? ORDER BY hb.created_at DESC,hb.rowid DESC`,
+        `SELECT hb.id,b.id AS workId,b.title,b.author,b.categories,b.description,e.format,e.isbn,e.cover_url AS coverUrl,e.page_count AS pageCount,e.metadata_json AS editionMetadata,l.name AS location FROM household_books hb JOIN book_editions e ON e.id=hb.edition_id JOIN books b ON b.id=e.book_id LEFT JOIN book_locations l ON l.id=hb.location_id WHERE hb.household_id=? ORDER BY hb.created_at DESC,hb.rowid DESC`,
       )
       .bind(household.id)
-      .all<Omit<LibraryBook, 'categories' | 'records'> & { categories: string }>();
+      .all<
+        Omit<LibraryBook, 'categories' | 'records' | 'metadata'> & {
+          categories: string;
+          editionMetadata: string;
+        }
+      >();
     const records = await this.db
       .prepare(
         `SELECT r.member_id AS memberId,r.household_book_id AS householdBookId,r.status,r.started_date AS startedDate,r.finished_date AS finishedDate,br.rating FROM reading_records r LEFT JOIN book_ratings br ON br.member_id=r.member_id AND br.household_book_id=r.household_book_id WHERE r.household_id=?`,
@@ -69,8 +78,9 @@ export class Repository {
         ...member,
         preferences: JSON.parse(member.preferences),
       })),
-      books: books.results.map((book) => ({
+      books: books.results.map(({ editionMetadata, ...book }) => ({
         ...book,
+        metadata: JSON.parse(editionMetadata).id ? JSON.parse(editionMetadata) : null,
         categories: JSON.parse(book.categories),
         records: records.results.filter((record) => record.householdBookId === book.id),
       })),
@@ -96,38 +106,133 @@ export class Repository {
       .run();
     return { id: memberId };
   }
-  bookStatements(householdId: string, input: ManualBook, ownedId = id(), candidateId?: string) {
-    const workId = id(),
-      editionId = id();
+  async bookStatements(
+    householdId: string,
+    input: ManualBook,
+    metadata?: BookMetadata | null,
+    candidateId?: string,
+  ) {
+    const isbn = normalizeIsbn(input.isbn);
+    if (input.isbn && !isbn) throw new ApiError(400, 'Enter a valid ISBN-10 or ISBN-13.');
+    const editions = await this.db
+      .prepare(
+        'SELECT e.id,e.book_id AS workId,e.isbn,e.format,e.metadata_json AS metadata FROM book_editions e',
+      )
+      .all<{ id: string; workId: string; isbn: string | null; format: string; metadata: string }>();
+    const exact = isbn
+      ? editions.results.find((edition) => normalizeIsbn(edition.isbn) === isbn)
+      : undefined;
+    const works = await this.db
+      .prepare('SELECT id,title,author FROM books')
+      .all<{ id: string; title: string; author: string }>();
+    const work = exact
+      ? works.results.find((work) => work.id === exact.workId)
+      : works.results.find((work) => sameWork(work, input));
+    const hash = async (value: string) =>
+      [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))]
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+    const workKey = `${normalizeText(input.title)}|${normalizeAuthor(input.author)}`;
+    const workId = work?.id ?? `work-${await hash(workKey)}`;
+    const existing =
+      exact ??
+      editions.results.find((edition) => {
+        if (
+          edition.workId !== workId ||
+          (isbn && normalizeIsbn(edition.isbn) && normalizeIsbn(edition.isbn) !== isbn)
+        )
+          return false;
+        const formatAgrees =
+          edition.format === input.format ||
+          edition.format === 'unknown' ||
+          (input.format === 'unknown' && !['ebook', 'audiobook'].includes(edition.format));
+        if (!formatAgrees) return false;
+        const saved = JSON.parse(edition.metadata) as Partial<BookMetadata>;
+        return (
+          (!metadata?.year || !saved.year || saved.year === metadata.year) &&
+          (!metadata?.language || !saved.language || saved.language === metadata.language) &&
+          (!metadata?.publisher || !saved.publisher || saved.publisher === metadata.publisher)
+        );
+      });
+    const editionKey = isbn
+      ? `isbn:${isbn}`
+      : `${workId}|${input.format}|${metadata?.year ?? ''}|${metadata?.language ?? ''}|${metadata?.publisher ?? ''}`;
+    const editionId = existing?.id ?? `edition-${await hash(editionKey)}`;
+    const ownedId = id();
     const guard = candidateId
-      ? " WHERE EXISTS (SELECT 1 FROM recognition_candidates WHERE id=? AND household_id=? AND confirmation_state='pending')"
+      ? " AND EXISTS (SELECT 1 FROM recognition_candidates WHERE id=? AND household_id=? AND confirmation_state='pending')"
       : '';
     const params = candidateId ? [candidateId, householdId] : [];
-    return {
-      ownedId,
-      statements: [
-        this.db
-          .prepare('INSERT INTO books(id,title,author,categories) SELECT ?,?,?,?' + guard)
-          .bind(
-            workId,
-            input.title,
-            input.author,
-            JSON.stringify(input.categories ?? []),
-            ...params,
+    const statements = [
+      this.db
+        .prepare(
+          'INSERT OR IGNORE INTO books(id,title,author,categories,description,identity_key) SELECT ?,?,?,?,?,? WHERE 1=1' +
+            guard,
+        )
+        .bind(
+          workId,
+          input.title,
+          input.author,
+          JSON.stringify(
+            input.categories?.length ? input.categories : (metadata?.categories ?? []),
           ),
-        this.db
-          .prepare('INSERT INTO book_editions(id,book_id,isbn,format) SELECT ?,?,?,?' + guard)
-          .bind(editionId, workId, input.isbn || null, input.format, ...params),
-        this.db
-          .prepare('INSERT INTO household_books(id,household_id,edition_id) SELECT ?,?,?' + guard)
-          .bind(ownedId, householdId, editionId, ...params),
-      ],
-    };
+          metadata?.description ?? '',
+          work ? null : workKey,
+          ...params,
+        ),
+      this.db
+        .prepare(
+          'INSERT OR IGNORE INTO book_editions(id,book_id,isbn,format,cover_url,page_count,identity_key,metadata_json) SELECT ?,?,?,?,?,?,?,? WHERE 1=1' +
+            guard,
+        )
+        .bind(
+          editionId,
+          workId,
+          isbn,
+          input.format,
+          metadata?.coverUrl ?? null,
+          metadata?.pageCount ?? null,
+          existing ? null : editionKey,
+          JSON.stringify(metadata ?? {}),
+          ...params,
+        ),
+      this.db
+        .prepare(
+          "UPDATE book_editions SET format=? WHERE id=? AND format='unknown' AND ?!='unknown'" +
+            guard,
+        )
+        .bind(input.format, editionId, input.format, ...params),
+      this.db
+        .prepare(
+          'INSERT INTO household_books(id,household_id,edition_id) SELECT ?,?,? WHERE (?=1 OR NOT EXISTS (SELECT 1 FROM household_books WHERE household_id=? AND edition_id=?))' +
+            guard,
+        )
+        .bind(
+          ownedId,
+          householdId,
+          editionId,
+          input.additionalCopy ? 1 : 0,
+          householdId,
+          editionId,
+          ...params,
+        ),
+    ];
+    return { ownedId, editionId, statements };
   }
-  async addBook(householdId: string, input: ManualBook) {
-    const { ownedId, statements } = this.bookStatements(householdId, input);
+  async addBook(householdId: string, input: ManualBook, metadata?: BookMetadata | null) {
+    const { ownedId, editionId, statements } = await this.bookStatements(
+      householdId,
+      input,
+      metadata,
+    );
     await this.db.batch(statements);
-    return { id: ownedId };
+    const saved = await this.db
+      .prepare(
+        'SELECT id FROM household_books WHERE household_id=? AND edition_id=? ORDER BY CASE WHEN id=? THEN 0 ELSE 1 END,rowid LIMIT 1',
+      )
+      .bind(householdId, editionId, ownedId)
+      .first<{ id: string }>();
+    return { id: saved!.id, reused: saved!.id !== ownedId };
   }
   async saveHistory(householdId: string, input: z.infer<typeof historyInput>) {
     await this.requireMember(householdId, input.memberId);
@@ -194,19 +299,60 @@ export class Repository {
     });
     await this.db.batch(statements);
   }
-  async scan(householdId: string, scanId: string) {
+  async scan(householdId: string, scanId: string): Promise<Scan> {
     const session = await this.db
-      .prepare('SELECT id FROM scan_sessions WHERE household_id=? AND id=?')
-      .bind(householdId, scanId)
-      .first<{ id: string }>();
-    if (!session) throw new ApiError(404, 'Scan not found.');
-    const candidates = await this.db
       .prepare(
-        'SELECT id,probable_title AS probableTitle,probable_author AS probableAuthor,probable_isbn AS probableIsbn,confidence,source_image_id AS sourceImageId,confirmation_state AS confirmationState,household_book_id AS householdBookId FROM recognition_candidates WHERE household_id=? AND scan_session_id=? ORDER BY rowid',
+        'SELECT id,processing_state AS status,warnings_json AS warnings,processing_started_at AS startedAt FROM scan_sessions WHERE household_id=? AND id=?',
       )
       .bind(householdId, scanId)
-      .all<Candidate>();
-    return { ...session, candidates: candidates.results };
+      .first<{ id: string; status: string; warnings: string; startedAt: string | null }>();
+    if (!session) throw new ApiError(404, 'Scan not found.');
+    if (
+      session.status === 'processing' &&
+      session.startedAt &&
+      Date.now() - Date.parse(session.startedAt.replace(' ', 'T') + 'Z') > 300000
+    ) {
+      session.status = 'failed';
+      session.warnings = JSON.stringify([
+        'Processing was interrupted. Re-upload unfinished photos to resume.',
+      ]);
+      await this.db
+        .prepare(
+          "UPDATE scan_sessions SET processing_state='failed',warnings_json=? WHERE id=? AND household_id=? AND processing_state='processing'",
+        )
+        .bind(session.warnings, scanId, householdId)
+        .run();
+    }
+    const candidates = await this.db
+      .prepare(
+        'SELECT id,probable_title AS probableTitle,probable_author AS probableAuthor,probable_isbn AS probableIsbn,confidence,raw_confidence AS rawConfidence,source_image_id AS sourceImageId,confirmation_state AS confirmationState,household_book_id AS householdBookId,enrichment_json AS enrichment FROM recognition_candidates WHERE household_id=? AND scan_session_id=? ORDER BY rowid',
+      )
+      .bind(householdId, scanId)
+      .all<
+        Omit<Candidate, 'band' | 'metadata' | 'alternatives' | 'sourceImageIds'> & {
+          enrichment: string;
+        }
+      >();
+    const images = await this.db
+      .prepare(
+        'SELECT id,processing_state AS state,error FROM scan_images WHERE household_id=? AND scan_session_id=? ORDER BY rowid',
+      )
+      .bind(householdId, scanId)
+      .all<Scan['images'][number]>();
+    return {
+      ...session,
+      warnings: JSON.parse(session.warnings),
+      images: images.results,
+      candidates: candidates.results.map(({ enrichment, ...candidate }) => ({
+        band:
+          candidate.confidence >= 0.9 ? 'HIGH' : candidate.confidence >= 0.65 ? 'MEDIUM' : 'LOW',
+        metadata: null,
+        alternatives: [],
+        sourceImageIds: [candidate.sourceImageId],
+        ...candidate,
+        ...JSON.parse(enrichment),
+      })),
+    };
   }
   async confirmCandidate(
     householdId: string,
@@ -215,11 +361,12 @@ export class Repository {
     action: 'accept' | 'reject',
     title?: string,
     author?: string,
+    options: Partial<z.infer<typeof candidateInput>> = {},
   ) {
     const scan = await this.scan(householdId, scanId);
     const candidate = scan.candidates.find((item) => item.id === candidateId);
     if (!candidate) throw new ApiError(404, 'Candidate not found.');
-    if (candidate.confirmationState !== 'pending') return scan; // Idempotent repeated clicks/retries.
+    if (candidate.confirmationState !== 'pending') return scan;
     if (action === 'reject')
       await this.db
         .prepare(
@@ -228,30 +375,80 @@ export class Repository {
         .bind(candidateId, householdId)
         .run();
     else {
-      const book = {
-        title: title ?? candidate.probableTitle,
-        author: author ?? candidate.probableAuthor,
-        isbn: candidate.probableIsbn ?? undefined,
-        format: 'unknown' as const,
+      let metadata = options.metadataId
+        ? candidate.alternatives.find((match) => match.metadata.id === options.metadataId)?.metadata
+        : candidate.metadata;
+      if (options.metadataId && !metadata)
+        throw new ApiError(400, 'Choose a match from this candidate.');
+      if (
+        metadata &&
+        options.isbn &&
+        normalizeIsbn(options.isbn) !== normalizeIsbn(metadata.isbn13 ?? metadata.isbn10)
+      )
+        metadata = null;
+      // Edited text must not retain another book's ISBN, cover or description.
+      if (
+        !options.metadataId &&
+        ((title && title !== (metadata?.title ?? candidate.probableTitle)) ||
+          (author && author !== (metadata?.authors.join(', ') ?? candidate.probableAuthor)))
+      )
+        metadata = null;
+      const book: ManualBook = {
+        title: options.metadataId
+          ? metadata!.title
+          : (title ?? metadata?.title ?? candidate.probableTitle),
+        author: options.metadataId
+          ? metadata!.authors.join(', ')
+          : (author ?? metadata?.authors.join(', ') ?? candidate.probableAuthor),
+        isbn:
+          options.isbn ??
+          metadata?.isbn13 ??
+          metadata?.isbn10 ??
+          (title || author ? undefined : (candidate.probableIsbn ?? undefined)),
+        format: options.format ?? metadata?.format ?? 'unknown',
+        additionalCopy: options.additionalCopy,
       };
-      const { ownedId, statements } = this.bookStatements(householdId, book, id(), candidateId);
-      // Guard every insert and claim atomically: concurrent retries become no-ops.
+      if (!book.title.trim() || !book.author.trim())
+        throw new ApiError(400, 'Enter a title and author before accepting.');
+      const { ownedId, editionId, statements } = await this.bookStatements(
+        householdId,
+        book,
+        metadata,
+        candidateId,
+      );
       await this.db.batch([
         ...statements,
         this.db
           .prepare(
-            "UPDATE recognition_candidates SET household_book_id=?,confirmation_state='accepted',probable_title=?,probable_author=? WHERE id=? AND household_id=? AND confirmation_state='pending'",
+            "UPDATE recognition_candidates SET household_book_id=(SELECT id FROM household_books WHERE household_id=? AND edition_id=? ORDER BY CASE WHEN id=? THEN 0 ELSE 1 END,rowid LIMIT 1),confirmation_state='accepted',probable_title=?,probable_author=? WHERE id=? AND household_id=? AND confirmation_state='pending'",
           )
-          .bind(ownedId, book.title, book.author, candidateId, householdId),
+          .bind(householdId, editionId, ownedId, book.title, book.author, candidateId, householdId),
       ]);
     }
     await this.db
       .prepare(
-        "UPDATE scan_sessions SET status='completed' WHERE id=? AND household_id=? AND NOT EXISTS (SELECT 1 FROM recognition_candidates WHERE scan_session_id=? AND confirmation_state='pending')",
+        "UPDATE scan_sessions SET status='completed',processing_state='completed' WHERE id=? AND household_id=? AND processing_state!='processing' AND NOT EXISTS (SELECT 1 FROM recognition_candidates WHERE scan_session_id=? AND confirmation_state='pending')",
       )
       .bind(scanId, householdId, scanId)
       .run();
     return this.scan(householdId, scanId);
+  }
+  async bulkAccept(householdId: string, scanId: string, excludeIds: string[] = []) {
+    const scan = await this.scan(householdId, scanId);
+    const failures: string[] = [];
+    for (const candidate of scan.candidates.filter(
+      (item) =>
+        item.band === 'HIGH' &&
+        item.confirmationState === 'pending' &&
+        !excludeIds.includes(item.id),
+    )) {
+      try {
+        await this.confirmCandidate(householdId, scanId, candidate.id, 'accept');
+      } catch {
+        failures.push(candidate.id);
+      }
+    }
+    return { ...(await this.scan(householdId, scanId)), failures };
   }
 }
 export class ApiError extends Error {
