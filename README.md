@@ -74,6 +74,9 @@ Scanning deliberately returns **three sample matches** from a mock provider. The
 
 | Screen                            | Route                    |
 | --------------------------------- | ------------------------ |
+| Home                              | `/home`                  |
+| More                              | `/more`                  |
+| Welcome preview                   | `/welcome`               |
 | Household setup                   | `/onboarding`            |
 | Household library                 | `/library`               |
 | Profiles                          | `/members`               |
@@ -114,7 +117,7 @@ Local settings/secrets live in ignored `.dev.vars`; remote secrets use `pnpm exe
 
 The app has an install manifest, 192/512px icons and a production service worker. The service worker provides a small offline notice on navigation failure; household data and API responses are **not cached**, and edits require connectivity. Service worker installation is disabled during development. Offline library editing/synchronisation is not part of this foundation.
 
-Responsive layouts support narrow mobile screens, keyboard focus, labelled controls, a skip link and live save/error messages. Automated axe checks cover the seven main screens for WCAG A/AA violations; these complement, rather than replace, manual keyboard and assistive-technology review. Decorative book covers are generated locally from titles, not official cover artwork. Typography has system/Georgia fallbacks if Google Fonts is unavailable. External metadata and cover imagery can be added behind the provider interface later.
+Responsive layouts support narrow mobile screens, keyboard focus, labelled controls, a skip link and live save/error messages. Automated axe checks cover the seven main screens for WCAG A/AA violations; these complement, rather than replace, manual keyboard and assistive-technology review. The brand uses a native folded-page P mark, Manrope UI/wordmark typography and Source Serif 4 headings. Existing edition cover URLs take precedence; 21 original demo works have curated Open Library jacket references, with restrained local placeholders for missing/failed images. Google Fonts and external covers have graceful fallbacks. See [the design notes and mobile/desktop screenshots](docs/design/README.md) for the visual system and its limitations.
 
 ## Known limitations and next steps
 

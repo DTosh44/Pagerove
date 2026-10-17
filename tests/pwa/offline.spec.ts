@@ -9,7 +9,7 @@ test('production assets, install manifest and offline fallback work together', a
   };
   for (const icon of manifest.icons) expect((await request.get(icon.src)).status()).toBe(200);
   await page.goto('/library');
-  await expect(page.getByRole('heading', { name: 'Your library', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Our Library', exact: true })).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
@@ -18,5 +18,5 @@ test('production assets, install manifest and offline fallback work together', a
   await context.setOffline(true);
   await page.goto('/library');
   await expect(page.getByRole('heading', { name: 'Your stories are safe.' })).toBeVisible();
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(251, 250, 247)');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(249, 246, 239)');
 });

@@ -86,9 +86,21 @@ export function ScanPage() {
     navigate = useNavigate(),
     [scan, setScan] = useState<Scan | null>(null),
     { busy, error, run } = useAction(),
-    [loadError, setLoadError] = useState('');
+    [loadError, setLoadError] = useState(''),
+    [photo, setPhoto] = useState<File | null>(null),
+    [preview, setPreview] = useState('');
+  useEffect(() => {
+    if (!photo) {
+      setPreview('');
+      return;
+    }
+    const url = URL.createObjectURL(photo);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
   useEffect(() => {
     let active = true;
+    setLoadError('');
     if (scanId)
       api<Scan>(`/scans/${scanId}`)
         .then((result) => {
@@ -97,7 +109,10 @@ export function ScanPage() {
         .catch((e) => {
           if (active) setLoadError(e.message);
         });
-    else setScan(null);
+    else {
+      setScan(null);
+      setPhoto(null);
+    }
     return () => {
       active = false;
     };
@@ -120,42 +135,79 @@ export function ScanPage() {
       <PageHeading
         eyebrow="From your shelf to your library"
         title="Scan your books"
-        description="A future shortcut for bringing a whole bookshelf into PageRove."
+        description="Take a photo of your bookshelf and we’ll find the books for you."
       />
       <div className="notice">
-        <strong>Sample recognition preview.</strong> This mock returns three sample titles
-        regardless of the selected photo. Only filename, type and size are saved; your photo stays
-        on your device.
+        <strong>A little preview of what’s coming.</strong> You’ll see three sample matches, rather
+        than books identified from your photo. Your photo stays on this device; only its name, size
+        and type are saved.
       </div>
       <ErrorMessage message={loadError || error} />
       {!scan ? (
         <form className="panel upload-panel" onSubmit={submit}>
-          <div className="round-icon">
-            <Camera size={34} />
+          <div className={`shelf-preview ${preview ? 'has-photo' : ''}`}>
+            {preview ? (
+              <img src={preview} alt="Your selected bookshelf photo" />
+            ) : (
+              <div className="shelf-illustration" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+            )}
+            <span className="scan-corners" aria-hidden="true" />
+            <label className="file-label">
+              <Camera size={21} />
+              {photo ? 'Choose another photo' : 'Take or choose a photo'}
+              <input
+                aria-label="Shelf photo"
+                name="photo"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                required
+                onChange={(event) => setPhoto(event.target.files?.[0] ?? null)}
+              />
+            </label>
           </div>
           <h2>A shelf full of possibilities</h2>
-          <p>Choose a photo to try the review and confirmation journey.</p>
-          <label className="file-label">
-            Shelf photo
-            <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required />
-          </label>
+          <p>One photo. So many stories to rediscover.</p>
           <small>JPEG, PNG or WebP · up to 10 MB</small>
           <Button busy={busy}>
-            Preview sample recognition <ArrowRight size={18} />
+            Find sample books <ArrowRight size={18} />
           </Button>
         </form>
       ) : (
         <>
+          {preview && (
+            <div className="scan-result-photo">
+              <img src={preview} alt="Your selected bookshelf photo" />
+            </div>
+          )}
           <div className="scan-summary">
-            <h2>PageRove found {scan.candidates.length} sample books</h2>
-            <p>
-              {scan.candidates.filter((candidate) => candidate.confidence >= 0.85).length} confident
-              · {scan.candidates.filter((candidate) => candidate.confidence < 0.85).length} need
-              checking
-            </p>
+            <h2>We found {scan.candidates.length} sample books</h2>
+            <div className="scan-counts">
+              <span className="confidence">
+                <Check size={16} />
+                {scan.candidates.filter((candidate) => candidate.confidence >= 0.85).length}{' '}
+                confident
+              </span>
+              <span className="confidence check">
+                {scan.candidates.filter((candidate) => candidate.confidence < 0.85).length} need
+                checking
+              </span>
+            </div>
             <span>Edit any title or author, then accept or reject each match.</span>
+            <a className="button primary" href="#scan-review">
+              Review books <ArrowRight size={18} />
+            </a>
           </div>
-          <div className="candidate-grid">
+          <section id="scan-review" aria-label="Review book matches" className="candidate-grid">
             {scan.candidates.map((candidate) => (
               <CandidateCard
                 key={candidate.id}
@@ -164,7 +216,7 @@ export function ScanPage() {
                 onUpdate={setScan}
               />
             ))}
-          </div>
+          </section>
           <div className="scan-next">
             <Link className="button primary" to="/library">
               Back to your library <ArrowRight size={18} />

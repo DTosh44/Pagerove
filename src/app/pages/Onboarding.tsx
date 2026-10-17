@@ -1,14 +1,16 @@
-import { type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { ArrowRight, BookOpen } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useLibrary, useAction } from '../context';
-import { ErrorMessage, Button } from '../components';
+import { BookStack, ErrorMessage, Button } from '../components';
 import { api } from '../api';
-export function Onboarding() {
+export function Onboarding({ preview = false }: { preview?: boolean }) {
   const { data, refresh, notify } = useLibrary(),
     navigate = useNavigate(),
-    { busy, error, run } = useAction();
-  if (data.household) return <Navigate to="/library" replace />;
+    { busy, error, run } = useAction(),
+    [started, setStarted] = useState(false),
+    [accountNote, setAccountNote] = useState(false);
+  if (data.household && !preview) return <Navigate to="/home" replace />;
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
@@ -24,33 +26,59 @@ export function Onboarding() {
   }
   return (
     <div className="onboarding">
-      <div className="round-icon">
-        <BookOpen size={36} />
+      <section className="onboarding-copy">
+        <p className="eyebrow">Your family’s intelligent library.</p>
+        <h1>{started ? 'A home for your stories.' : 'A more wonderful way to read together.'}</h1>
+        <p className="onboarding-description">
+          Scan your books, track what you’ve read, get personalised recommendations and make more of
+          the books you already own.
+        </p>
+        {started ? (
+          <form onSubmit={submit} className="form-panel onboarding-form">
+            <label>
+              Household name
+              <input name="name" placeholder="The Willow household" required maxLength={100} />
+            </label>
+            <label>
+              Your display name
+              <input name="displayName" placeholder="Alex" required maxLength={100} />
+            </label>
+            <p className="demo-note">You’re trying a shared demo. Use fictional names for now.</p>
+            <ErrorMessage message={error} />
+            <Button busy={busy}>
+              Create your household <ArrowRight size={18} />
+            </Button>
+          </form>
+        ) : (
+          <>
+            <button
+              className="button primary"
+              onClick={() => (data.household ? navigate('/home') : setStarted(true))}
+            >
+              Get started <ArrowRight size={20} />
+            </button>
+            <button className="account-link" onClick={() => setAccountNote(true)}>
+              I already have an account
+            </button>
+            {accountNote && (
+              <p className="notice" role="status">
+                Sign-in is coming later. For now, use Get started to explore the shared demo.
+              </p>
+            )}
+          </>
+        )}
+      </section>
+      <div className="onboarding-visual">
+        <span className="visual-caption">
+          Same books.
+          <br />
+          New stories.
+          <br />
+          Further together.
+        </span>
+        <BookStack />
+        <span className="onboarding-footnote">Books take you places.</span>
       </div>
-      <p className="eyebrow">Welcome to PageRove</p>
-      <h1>
-        Every shelf has
-        <br />a story to tell.
-      </h1>
-      <p className="muted">Make a home for the books you own and the people who read them.</p>
-      <div className="notice">
-        This foundation uses a shared demo account. Use fictional information while authentication
-        is being prepared.
-      </div>
-      <form onSubmit={submit} className="panel form-panel">
-        <label>
-          Household name
-          <input name="name" placeholder="The Willow household" required maxLength={100} />
-        </label>
-        <label>
-          Your display name
-          <input name="displayName" placeholder="Alex" required maxLength={100} />
-        </label>
-        <ErrorMessage message={error} />
-        <Button busy={busy}>
-          Create your household <ArrowRight size={18} />
-        </Button>
-      </form>
     </div>
   );
 }

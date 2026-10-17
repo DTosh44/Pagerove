@@ -1,21 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import {
-  BookOpen,
-  Camera,
-  Check,
-  Heart,
-  Library as LibraryIcon,
-  LoaderCircle,
-  Plus,
-  Sparkles,
-  Users,
-  X,
-} from 'lucide-react';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Check, LoaderCircle, X } from 'lucide-react';
 import type { LibraryState } from '../domain/types';
 import { api } from './api';
 import { LibraryContext } from './context';
-import { ErrorMessage, MemberSelector } from './components';
+import { Brand, ErrorMessage, MemberSelector } from './components';
 import { Onboarding } from './pages/Onboarding';
 import { LibraryPage } from './pages/LibraryPage';
 import { MembersPage } from './pages/MembersPage';
@@ -23,8 +12,13 @@ import { AddBookPage } from './pages/AddBookPage';
 import { BookDetailsPage } from './pages/BookDetailsPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
+import { Sidebar, BottomNavigation } from './navigation';
+import { HomePage } from './pages/HomePage';
+import { MorePage } from './pages/MorePage';
 import { ScanPage } from './pages/ScanPage';
 export function App() {
+  const { pathname } = useLocation();
+  const welcome = pathname === '/onboarding' || pathname === '/welcome';
   const [data, setData] = useState<LibraryState | null>(null),
     [error, setError] = useState(''),
     [memberId, setMemberId] = useState(''),
@@ -47,13 +41,10 @@ export function App() {
   if (error)
     return (
       <main className="initial">
-        <BookOpen size={40} />
+        <Brand />
         <h1>Let’s get your library ready</h1>
-        <ErrorMessage message={error} />
-        <p>
-          For local development, copy <code>.dev.vars.example</code> to <code>.dev.vars</code> and
-          apply the D1 migrations.
-        </p>
+        <ErrorMessage message="We couldn’t open your library right now. Please try again soon." />
+        <p>Your stories will be here when you’re ready to try again.</p>
         <button
           className="button primary"
           onClick={() => {
@@ -77,64 +68,15 @@ export function App() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <div className="app-shell">
-        <aside className="sidebar">
-          <Link to="/library" className="wordmark">
-            <BookOpen size={28} strokeWidth={1.5} />
-            PageRove<span className="wordmark-dot">.</span>
-          </Link>
-          <p className="brand-line">A little closer to your next read.</p>
-          <nav aria-label="Main navigation">
-            <NavLink to="/library">
-              <LibraryIcon size={20} />
-              Your library
-            </NavLink>
-            <NavLink to="/recommendations">
-              <Sparkles size={20} />
-              What should I read?
-            </NavLink>
-            <NavLink to="/history">
-              <BookOpen size={20} />
-              Reading history
-            </NavLink>
-            <NavLink to="/members">
-              <Users size={20} />
-              Your people
-            </NavLink>
-            <div className="nav-divider" />
-            <NavLink to="/books/new">
-              <Plus size={20} />
-              Add a book
-            </NavLink>
-            <NavLink to="/scan">
-              <Camera size={20} />
-              Scan your shelves
-            </NavLink>
-          </nav>
-          <div className="sidebar-note">
-            <Heart size={20} />
-            <p>
-              Good stories are already
-              <br />
-              closer than you think.
-            </p>
-            <span>Start with your own shelves.</span>
-          </div>
-          <div className="household-label">
-            <span className="avatar small">W</span>
-            <div>
-              <strong>{data.household?.name ?? 'Your new household'}</strong>
-              <span>Shared demo · fictional data</span>
-            </div>
-          </div>
-        </aside>
+      <div className={`app-shell ${welcome ? 'welcome-shell' : ''}`}>
+        {!welcome && <Sidebar />}
         <div className="workspace">
           <header className="topbar">
-            <span className="topbar-note">Your family’s intelligent library</span>
-            <Link className="mobile-wordmark" to="/library">
-              PageRove.
+            <Link className="header-brand" to="/home" aria-label="PageRove home">
+              <Brand compact />
             </Link>
-            {data.members.length > 0 && <MemberSelector />}
+            <span className="topbar-note">Same books. New possibilities.</span>
+            {!welcome && data.members.length > 0 && <MemberSelector />}
           </header>
           <main id="main" className="main-content">
             {message && (
@@ -148,6 +90,7 @@ export function App() {
             )}
             <Routes>
               <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/welcome" element={<Onboarding preview />} />
               <Route
                 path="/*"
                 element={
@@ -157,9 +100,13 @@ export function App() {
             </Routes>
           </main>
           <footer>
-            PageRove <span>Made for the books you already love.</span>
+            <span>Books take you places.</span>
+            <a href="https://openlibrary.org" target="_blank" rel="noreferrer">
+              Demo cover art · Open Library
+            </a>
           </footer>
         </div>
+        {data.household && !welcome && <BottomNavigation />}
       </div>
     </LibraryContext.Provider>
   );
@@ -167,7 +114,9 @@ export function App() {
 function HouseholdRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/library" replace />} />
+      <Route path="/" element={<Navigate to="/home" replace />} />
+      <Route path="/home" element={<HomePage />} />
+      <Route path="/more" element={<MorePage />} />
       <Route path="/library" element={<LibraryPage />} />
       <Route path="/members" element={<MembersPage />} />
       <Route path="/books/new" element={<AddBookPage />} />

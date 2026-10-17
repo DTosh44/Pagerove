@@ -5,7 +5,7 @@ import type { LibraryBook } from '../../domain/types';
 import { statuses } from '../../domain/types';
 import { statusLabels } from '../../domain/library';
 import { useLibrary, useAction } from '../context';
-import { Cover, ErrorMessage, Button } from '../components';
+import { Avatar, StatusBadge, Cover, ErrorMessage, Button } from '../components';
 import { api } from '../api';
 function HistoryForm({ book }: { book: LibraryBook }) {
   const { memberId, refresh, notify } = useLibrary(),
@@ -137,11 +137,9 @@ export function BookDetailsPage() {
             const record = book.records.find((item) => item.memberId === member.id);
             return (
               <div className="reader-row" key={member.id}>
-                <span className={`avatar small avatar-${index % 4}`}>{member.displayName[0]}</span>
+                <Avatar member={member} index={index} small />
                 <strong>{member.displayName}</strong>
-                <span className={`status ${record?.status ?? 'unread'}`}>
-                  {statusLabels[record?.status ?? 'unread']}
-                </span>
+                <StatusBadge status={record?.status ?? 'unread'} />
                 {record?.rating && (
                   <span className="rating" aria-label={`${record.rating} out of 5 stars`}>
                     {'★'.repeat(record.rating)}

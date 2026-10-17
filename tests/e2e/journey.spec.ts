@@ -3,7 +3,7 @@ test('library, manual addition, reading history, recommendations and scan review
   page,
 }) => {
   await page.goto('/library');
-  await expect(page.getByRole('heading', { name: 'Your library', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Our Library', exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/library-desktop.png', fullPage: false });
   await page.getByRole('textbox', { name: 'Search title or author' }).fill('Hobbit');
   await expect(page.getByRole('heading', { name: 'The Hobbit', exact: true })).toBeVisible();
@@ -19,18 +19,17 @@ test('library, manual addition, reading history, recommendations and scan review
   await expect(page.getByRole('status')).toContainText('Reading history saved');
   await page.reload();
   await expect(page.getByLabel('Reading status')).toHaveValue('read');
-  await page.getByRole('link', { name: 'What should I read?', exact: true }).click();
+  await page.getByRole('link', { name: 'Recommend', exact: true }).click();
   await page.getByRole('button', { name: 'Gripping', exact: true }).click();
   await page.getByRole('button', { name: 'Find my next read' }).click();
-  await expect(page.getByRole('heading', { name: 'Waiting for you at home' })).toBeVisible();
-  await expect(page.locator('.recommendation-grid .book-card')).toHaveCount(3);
-  await expect(page.locator('.recommendation-grid')).not.toContainText(title);
-  await page.getByRole('link', { name: 'Scan your shelves' }).click();
-  await page
-    .locator('input[type=file]')
-    .setInputFiles({ name: 'shelf.png', mimeType: 'image/png', buffer: Buffer.from('sample') });
-  await page.getByRole('button', { name: 'Preview sample recognition' }).click();
-  await expect(page.getByRole('heading', { name: 'PageRove found 3 sample books' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What are you in the mood for?' })).toBeVisible();
+  await expect(page.locator('.recommendation-feature')).toBeVisible();
+  await expect(page.locator('.more-recommendations .book-row')).toHaveCount(2);
+  await expect(page.locator('.recommendation-feature')).not.toContainText(title);
+  await page.getByRole('link', { name: 'Scan your books' }).click();
+  await page.locator('input[type=file]').setInputFiles('public/icon-192.png');
+  await page.getByRole('button', { name: 'Find sample books' }).click();
+  await expect(page.getByRole('heading', { name: 'We found 3 sample books' })).toBeVisible();
   await page.getByLabel('Candidate title The Secret Garden').fill('The edited garden');
   await page.getByRole('button', { name: 'Accept', exact: true }).first().click();
   await expect(page.getByText('Added to your library', { exact: true })).toBeVisible();
@@ -42,7 +41,7 @@ test('mobile library has no horizontal overflow and supports profile filtering',
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/library');
-  await expect(page.getByRole('heading', { name: 'Your library', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Our Library', exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/library-mobile.png', fullPage: false });
   await page.getByLabel('Reading profile').selectOption('ella');
   await page.getByRole('button', { name: 'Unread', exact: true }).click();

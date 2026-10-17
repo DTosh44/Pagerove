@@ -1,6 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect } from '@playwright/test';
 for (const route of [
+  '/home',
+  '/more',
+  '/welcome',
   '/library',
   '/members',
   '/books/new',
