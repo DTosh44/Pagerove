@@ -4,6 +4,20 @@
 
 Create a household → add adult and child reading profiles → add owned books → assign reading history → browse and filter → get up to three suggestions from unread books already at home.
 
+## Product purpose, features, visual style and direction
+
+**Why PageRove exists:** help families rediscover and enjoy the physical books they already have, rather than repeatedly buying more. A household has one shared library and separate reader profiles, so one person's **Read**, **Reading**, **Want to read** and **Unread** state does not overwrite another person's. Children are family reading profiles, not accounts with their own unprotected sign-in.
+
+**Implemented in the local/demo application:** household setup and multiple reader profiles; manual book entry; owned work/edition/copy records; reader-specific history and ratings; searchable, cover-first household library; a simple mood-based recommendation screen offering up to three genuinely owned, unread books; photo upload and review with mock recognition by default, plus configurable real recognition/metadata adapters and confirmation/deduplication logic. The live external provider path and private user authentication are **not yet verified as consumer-ready**. Nothing here is proof of a public launch.
+
+**Approved visual identity:** warm, modern and bookish rather than a library-administration dashboard. The **folded-page P** in deep Ink `#0E2A47` with Coral `#FF685B` fold is the icon; the PageRove wordmark stays sans-serif. **Source Serif 4** editorial headings complement clean **Manrope** UI/body type. Sand `#F9F6EF` provides warmth; Sage `#6B8F7A`, Mint `#C7F4E2`, Charcoal `#1F2937` and controlled coral accents support clear cards, reading states and actions. Book covers lead the content; avoid dense metadata, harsh gradients, gamified reading metrics or clutter. The phone navigation is **Home / Library / Recommend / Family / More**; desktop uses a left navigation. See [visual design rules and reviewed screen examples](docs/design/README.md).
+
+**Next milestone:** protect real household data through verified accounts/sessions and household membership; complete profile editing and deletion/retention rules; test private multi-user workflows and a limited real-shelf recognition trial, including provider accuracy, image disclosure, terms and costs. Release behind authentication only after those checks. Production remains fail-closed in `APP_MODE=locked` until ready.
+
+**Later, not approved for the current MVP:** wider catalogue indexing, durable scan queues, reading-plan workflow, multi-household support and richer per-work history. Schema placeholders are not evidence these features work. Borrowing/lending, second-hand exchanges, shipping, ecommerce, Kindle integrations and subscription paywalls are outside the current core product. Keep PageRove free and focused on reading books already at home.
+
+Track changing launch evidence and next actions in [PROJECT.md](PROJECT.md); [AGENTS.md](AGENTS.md) contains development and privacy guardrails.
+
 ## Local setup
 
 Use Node **24 LTS** and pnpm **11.19.0** (the `packageManager` field pins the version). TypeScript 6 is used because the ESLint parser does not yet support TypeScript 7.
